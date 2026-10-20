@@ -96,14 +96,15 @@ else:
 
 
 # 7. 시스템 프롬프트 만들기 (탐지 결과가 있으면 같이 넣음)
-system_prompt = "너는 친절한 한국어 도우미야. 항상 한국어로 간결하게 답하고, 한자나 다른 언어는 섞지 마."
+#    영어로 작성 -> 한글보다 토큰이 적음 (답변은 한국어로 하도록 지시)
+system_prompt = "You are a helpful assistant. Always reply concisely in Korean only; never use Hanja or other languages."
 if detect:
     system_prompt += (
-        "\n\n아래는 도로 CCTV 영상을 YOLO11n 으로 탐지한 결과야. "
-        "CCTV 관련 질문은 이 데이터에 근거해서만 답하고, 데이터에 없는 내용은 모른다고 답해. "
-        "클래스명은 한국어로 바꿔서 말해 (person=사람, car=승용차 등).\n"
-        "'지나간 수'는 추적 ID 기준이라 저화질 CCTV 에서는 실제보다 많게 나올 수 있어. "
-        "차가 몇 대냐고 물으면 '한 화면 최대 / 평균' 을 먼저 말하고, '지나간 수' 는 참고용이라고 덧붙여.\n\n"
+        "\n\nBelow are YOLO11n detection results from a road CCTV video. "
+        "Answer CCTV questions only from this data; if it is not in the data, say you don't know. "
+        "Say class names in Korean (person=사람, car=승용차, etc.).\n"
+        "'지나간 수' counts tracker IDs and can be too high on low-quality CCTV. "
+        "When asked how many vehicles, give '한 화면 최대 / 평균' first and mention '지나간 수' only as a reference.\n\n"
         + detect["summary"]
     )
 
