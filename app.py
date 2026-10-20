@@ -72,6 +72,7 @@ with st.sidebar:
                     "image": image,
                     "name": cctv_name,
                 }
+                st.session_state.messages = []      # 새 분석 -> 이전 CCTV 대화 초기화
             except ConnectionError as e:
                 st.error(str(e))
             bar.empty()
@@ -101,7 +102,8 @@ if detect:
         "\n\n아래는 도로 CCTV 영상을 YOLO11n 으로 탐지한 결과야. "
         "CCTV 관련 질문은 이 데이터에 근거해서만 답하고, 데이터에 없는 내용은 모른다고 답해. "
         "클래스명은 한국어로 바꿔서 말해 (person=사람, car=승용차 등).\n"
-        "'지나간 수'는 추적 ID 기준이라 실제와 조금 다를 수 있어.\n\n"
+        "'지나간 수'는 추적 ID 기준이라 저화질 CCTV 에서는 실제보다 많게 나올 수 있어. "
+        "차가 몇 대냐고 물으면 '한 화면 최대 / 평균' 을 먼저 말하고, '지나간 수' 는 참고용이라고 덧붙여.\n\n"
         + detect["summary"]
     )
 

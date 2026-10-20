@@ -1,0 +1,11 @@
+# 저화질 도로 CCTV(예: 720x480)용 ByteTrack 추적 설정
+# ultralytics 기본값(cfg/trackers/bytetrack.yaml)에서 아래 표시한 값만 바꿈
+# -> 화면이 작아 신뢰도가 낮게 잡히는 차도 추적(ID)하도록
+
+tracker_type: bytetrack
+track_high_thresh: 0.15   # 기본 0.25 -> 낮은 신뢰도 차도 1차 매칭
+track_low_thresh: 0.05    # 기본 0.1
+new_track_thresh: 0.15    # 기본 0.25 -> 낮은 신뢰도 차도 새 ID 시작
+track_buffer: 90          # 기본 30 -> 잠깐 가려져도 같은 ID 유지 (중복 세기 줄임)
+match_thresh: 0.8
+fuse_score: True

@@ -3,9 +3,17 @@ import time
 import json
 import urllib.request
 from datetime import datetime
+from pathlib import Path
 
 import cv2
 import pandas as pd
+
+# 저화질 CCTV 용 추적 설정 파일 (신뢰도 기준을 낮춤)
+TRACKER = str(Path(__file__).parent / "bytetrack_cctv.yaml")
+
+# 도로 객체만 탐지 (COCO 번호) : 0 사람, 1 자전거, 2 승용차, 3 오토바이, 5 버스, 7 트럭
+#   -> 기차·신호등 같은 엉뚱한 결과 제외
+ROAD_CLASSES = [0, 1, 2, 3, 5, 7]
 
 
 # 1. ITS CCTV 목록 가져오기 (v06_03_openapi_yolo.py 의 its_cctv() 를 목록용으로 변형)
@@ -61,19 +69,20 @@ def analyze_stream(source, seconds, model, progress=None):
             break
 
         # 2-1. 추적(track) : 같은 객체에 같은 ID 를 붙여줌 -> 중복 없이 셀 수 있음
-        results = model.track(frame, persist=True, verbose=False)
+        results = model.track(frame, persist=True, verbose=False,
+                              tracker=TRACKER, classes=ROAD_CLASSES)
         boxes = results[0].boxes
         names = results[0].names
         frames += 1
 
         # 2-2. 이번 프레임의 종류별 개수
         frame_count = {}
-        ids = boxes.id.int().tolist() if boxes.id is not None else [None] * len(boxes)
+        # ID 가 없는 박스 = 추적 실패한 신뢰도 낮은 탐지 -> 세지 않음
+        ids = boxes.id.int().tolist() if boxes.id is not None else []
         for cls, track_id in zip(boxes.cls.int().tolist(), ids):
             name = names[cls]
             frame_count[name] = frame_count.get(name, 0) + 1
-            if track_id is not None:
-                unique_ids.setdefault(name, set()).add(track_id)
+            unique_ids.setdefault(name, set()).add(track_id)
 
         for name, cnt in frame_count.items():
             max_count[name] = max(max_count.get(name, 0), cnt)
