@@ -54,12 +54,22 @@ with st.sidebar:
     road = st.segmented_control("도로 종류", list(ROAD_TYPES), default="국도", required=True)
     try:
         cctv_df = load_cctv_list(ROAD_TYPES[road])
+    except Exception as e:
+        cctv_df = None
+        st.warning(f"CCTV 목록을 불러오지 못했습니다 : {e}", title="CCTV 사용 불가")
+
+    if cctv_df is not None and cctv_df.empty:
+        cctv_df = None
+        st.warning("CCTV 목록이 비어 있습니다. 잠시 후 다시 시도하세요.", title="CCTV 사용 불가")
+
+    if cctv_df is not None:
         cctv_name = st.selectbox(
             "CCTV 선택", cctv_df["cctvname"].tolist(),
             help="목록을 연 상태에서 글자를 입력하면 검색됩니다 (예: 경부)",
         )
         seconds = st.slider("분석 시간(초)", 5, 30, 10)
         if st.button("분석 시작", icon=":material/videocam:", width="stretch"):
+            # 같은 이름은 get_cctv_list 에서 (2), (3) 을 붙여 구분해 둠 -> 이름으로 찾아도 정확함
             cctv_url = cctv_df.loc[cctv_df["cctvname"] == cctv_name, "cctvurl"].iloc[0]
             bar = st.progress(0.0, text=f"{seconds}초 동안 YOLO 탐지 중...")
             try:
@@ -75,9 +85,10 @@ with st.sidebar:
                 st.session_state.messages = []      # 새 분석 -> 이전 CCTV 대화 초기화
             except ConnectionError as e:
                 st.error(str(e))
-            bar.empty()
-    except Exception as e:
-        st.warning(f"CCTV 목록을 불러오지 못했습니다 : {e}", title="CCTV 사용 불가")
+            except Exception as e:
+                st.error(f"분석 중 오류가 발생했습니다 : {e}")
+            finally:
+                bar.empty()                         # 오류가 나도 진행 막대는 지움
 
     st.divider()
     if st.button("대화 지우기", icon=":material/delete:", width="stretch"):
@@ -125,4 +136,7 @@ if prompt := st.chat_input("질문을 입력하세요 (예: 지금 차가 몇 �
         answer = st.write_stream(
             llm.chat_stream(provider, model, system_prompt, st.session_state.messages)
         )
-    st.session_state.messages.append({"role": "assistant", "content": answer})
+    # 빈 답변·오류 안내는 화면에만 남기고, AI 에게 보내는 기록에서는 질문과 함께 뺌 (skip)
+    failed = not answer or llm.ERROR_MARK in answer
+    st.session_state.messages[-1]["skip"] = failed
+    st.session_state.messages.append({"role": "assistant", "content": answer, "skip": failed})

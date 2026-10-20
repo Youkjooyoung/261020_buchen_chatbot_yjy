@@ -25,7 +25,8 @@ def get_cctv_list(road_type="its"):
         raise ValueError(".env 에 ITS_API_KEY 가 없습니다.")
 
     getType = "json"
-    minX, maxX, minY, maxY = 120.95, 127.02, 30.55, 37.69
+    # 전국 범위 (경도 124~132, 위도 33~38.9) -> 부산·대구·강원·경기 북부까지 포함
+    minX, maxX, minY, maxY = 124.0, 132.0, 33.0, 38.9
 
     url_cctv = (
         f"https://openapi.its.go.kr:9443/cctvInfo"
@@ -39,7 +40,13 @@ def get_cctv_list(road_type="its"):
     json_object = json.loads(json_str)              # str -> dict
 
     cctv_play = pd.json_normalize(json_object["response"]["data"], sep='')
-    return cctv_play[["cctvname", "cctvurl"]]
+    cctv_play = cctv_play[["cctvname", "cctvurl"]].copy()
+
+    # 같은 이름의 CCTV 는 두 번째부터 뒤에 (2), (3) 을 붙여 구분
+    #   -> Streamlit selectbox 는 화면에 보이는 글자로 선택값을 구분하기 때문에 이름이 겹치면 안 됨
+    dup_no = cctv_play.groupby("cctvname").cumcount()
+    cctv_play["cctvname"] += dup_no.map(lambda n: f" ({n + 1})" if n else "")
+    return cctv_play
 
 
 # 2. 영상(CCTV URL 또는 영상 파일)을 정해진 시간 동안 YOLO 로 추적하며 탐지 결과 모으기
@@ -63,46 +70,50 @@ def analyze_stream(source, seconds, model, progress=None):
     frames = 0
     last_frame = None
 
-    while time.time() < end:
-        success, frame = cap.read()
-        if not success:
-            break
+    try:
+        while time.time() < end:
+            success, frame = cap.read()
+            if not success:
+                break
 
-        # 2-1. 추적(track) : 같은 객체에 같은 ID 를 붙여줌 -> 중복 없이 셀 수 있음
-        results = model.track(frame, persist=True, verbose=False,
-                              tracker=TRACKER, classes=ROAD_CLASSES)
-        boxes = results[0].boxes
-        names = results[0].names
-        frames += 1
+            # 2-1. 추적(track) : 같은 객체에 같은 ID 를 붙여줌 -> 중복 없이 셀 수 있음
+            results = model.track(frame, persist=True, verbose=False,
+                                  tracker=TRACKER, classes=ROAD_CLASSES)
+            boxes = results[0].boxes
+            names = results[0].names
+            frames += 1
 
-        # 2-2. 이번 프레임의 종류별 개수
-        frame_count = {}
-        # ID 가 없는 박스 = 추적 실패한 신뢰도 낮은 탐지 -> 세지 않음
-        ids = boxes.id.int().tolist() if boxes.id is not None else []
-        for cls, track_id in zip(boxes.cls.int().tolist(), ids):
-            name = names[cls]
-            frame_count[name] = frame_count.get(name, 0) + 1
-            unique_ids.setdefault(name, set()).add(track_id)
+            # 2-2. 이번 프레임의 종류별 개수
+            frame_count = {}
+            # ID 가 없는 박스 = 추적 실패한 신뢰도 낮은 탐지 -> 세지 않음
+            ids = boxes.id.int().tolist() if boxes.id is not None else []
+            for cls, track_id in zip(boxes.cls.int().tolist(), ids):
+                name = names[cls]
+                frame_count[name] = frame_count.get(name, 0) + 1
+                unique_ids.setdefault(name, set()).add(track_id)
 
-        for name, cnt in frame_count.items():
-            max_count[name] = max(max_count.get(name, 0), cnt)
-            total_count[name] = total_count.get(name, 0) + cnt
+            for name, cnt in frame_count.items():
+                max_count[name] = max(max_count.get(name, 0), cnt)
+                total_count[name] = total_count.get(name, 0) + cnt
 
-        last_frame = results[0].plot()
-        if progress:
-            progress(min((time.time() - start) / seconds, 1.0))
+            last_frame = results[0].plot()
+            if progress:
+                progress(min((time.time() - start) / seconds, 1.0))
+        # 영상이 중간에 끊길 수 있으므로 실제로 분석한 시간을 기록
+        elapsed = round(time.time() - start, 1)
 
-    # 3. 자원해제 + 다음 분석을 위해 추적기 초기화
-    cap.release()
-    if model.predictor is not None and hasattr(model.predictor, "trackers"):
-        del model.predictor.trackers
+    # 3. 자원해제 + 다음 분석을 위해 추적기 초기화 (중간에 오류가 나도 항상 실행)
+    finally:
+        cap.release()
+        if model.predictor is not None and hasattr(model.predictor, "trackers"):
+            del model.predictor.trackers
 
     if frames == 0:
         raise ConnectionError("CCTV 화면을 받아오지 못했습니다. 다른 CCTV 를 골라보세요.")
 
     stats = {
         "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "seconds": seconds,
+        "seconds": elapsed,
         "frames": frames,
         "classes": {
             name: {

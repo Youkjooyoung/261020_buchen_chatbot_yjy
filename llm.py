@@ -14,9 +14,14 @@ NOT_CHAT = ("whisper", "orpheus", "guard")
 # AI 에게 보낼 최근 대화 개수 (대화가 길어져도 토큰 사용량이 일정하게 유지됨)
 MAX_HISTORY = 10
 
+# 오류 안내 앞에 붙는 표시 -> app.py 에서 이 표시가 있는 답변은 대화 기록에서 뺌
+ERROR_MARK = "⚠️"
+
 
 # 1-1. 최근 대화만 잘라내기 (첫 메시지는 항상 user 여야 함)
+#      skip 표시된 메시지(오류·빈 답변)는 빼고, API 에는 role / content 만 보냄
 def recent_history(history):
+    history = [{"role": m["role"], "content": m["content"]} for m in history if not m.get("skip")]
     recent = history[-MAX_HISTORY:]
     if recent and recent[0]["role"] == "assistant":
         recent = recent[1:]
@@ -78,7 +83,7 @@ def claude_stream(model, system_prompt, history):
 def chat_stream(provider, model, system_prompt, history):
     key_name = "GROQ_API_KEY" if provider == "Groq" else "ANTHROPIC_API_KEY"
     if not os.getenv(key_name):
-        yield f"⚠️ .env 에 {key_name} 가 없습니다. README 의 'API 키 설정' 을 참고해 넣어주세요."
+        yield f"{ERROR_MARK} .env 에 {key_name} 가 없습니다. README 의 'API 키 설정' 을 참고해 넣어주세요."
         return
 
     try:
@@ -88,14 +93,14 @@ def chat_stream(provider, model, system_prompt, history):
             yield from claude_stream(model, system_prompt, history)
     except anthropic.AuthenticationError as e:
         yield (
-            f"⚠️ Claude API 키가 올바르지 않거나 만료됐습니다. ({e.message})\n\n"
+            f"{ERROR_MARK} Claude API 키가 올바르지 않거나 만료됐습니다. ({e.message})\n\n"
             "https://platform.claude.com/settings/keys 에서 새로 발급받아 .env 에 넣어주세요."
         )
     except anthropic.RateLimitError:
-        yield "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도하세요."
+        yield f"{ERROR_MARK} 요청이 너무 많습니다. 잠시 후 다시 시도하세요."
     except anthropic.APIConnectionError:
-        yield "⚠️ 인터넷 연결을 확인하세요."
+        yield f"{ERROR_MARK} 인터넷 연결을 확인하세요."
     except anthropic.APIStatusError as e:
-        yield f"⚠️ Claude API 오류 ({e.status_code}) : {e.message}"
+        yield f"{ERROR_MARK} Claude API 오류 ({e.status_code}) : {e.message}"
     except Exception as e:     # Groq 오류 등
-        yield f"⚠️ 오류가 발생했습니다 : {e}"
+        yield f"{ERROR_MARK} 오류가 발생했습니다 : {e}"
