@@ -32,7 +32,6 @@ CCTV 영상 ──▶ YOLO11n 추적 ──▶ 탐지 요약 글 ──▶ 시�
 ├── llm.py            # Groq / Claude 스트리밍 답변 함수
 ├── cctv_yolo.py      # ITS CCTV 목록 조회 + YOLO11n 탐지·요약
 ├── requirements.txt  # 필요한 라이브러리 목록
-├── .env.example      # API 키 이름 예시 (값 없음)
 ├── .gitignore        # .env, 키 파일, *.pt 등 업로드 제외
 └── README.md
 ```
@@ -47,8 +46,8 @@ pip install -r requirements.txt
 
 ## 🔑 API 키 설정 (.env)
 
-1. `.env.example`을 복사해서 이름을 `.env`로 바꿉니다.
-2. `=` 뒤에 본인 키를 넣습니다.
+1. 이 폴더에 `.env` 파일을 새로 만듭니다.
+2. 아래처럼 키 이름을 쓰고 `=` 뒤에 본인 키를 넣습니다.
 
 ```
 GROQ_API_KEY=여기에_Groq_키

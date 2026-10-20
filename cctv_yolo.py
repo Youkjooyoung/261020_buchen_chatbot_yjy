@@ -34,13 +34,19 @@ def get_cctv_list():
 
 
 # 2. 영상(CCTV URL 또는 영상 파일)을 정해진 시간 동안 YOLO 로 추적하며 탐지 결과 모으기
-def analyze_stream(source, seconds, model):
-    cap = cv2.VideoCapture(source)
+#    progress : 진행률(0~1)을 받는 함수 -> 화면에 진행 막대 표시용
+def analyze_stream(source, seconds, model, progress=None):
+    # 2-0. 응답 없는 CCTV 에서 오래 멈추지 않도록 열기·읽기 제한시간 10초
+    cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG, [
+        cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000,
+        cv2.CAP_PROP_READ_TIMEOUT_MSEC, 10000,
+    ])
     if not cap.isOpened():
-        raise ConnectionError("영상을 열 수 없습니다. CCTV 주소나 파일 경로를 확인하세요.")
+        raise ConnectionError("CCTV 영상을 열 수 없습니다. 다른 CCTV 를 골라보세요.")
 
     start_time = datetime.now()
-    end = time.time() + seconds
+    start = time.time()
+    end = start + seconds
 
     unique_ids = {}        # 종류별 고유 track ID 모음 -> 지나간 수
     max_count = {}         # 종류별 한 화면 최대 수
@@ -73,6 +79,8 @@ def analyze_stream(source, seconds, model):
             total_count[name] = total_count.get(name, 0) + cnt
 
         last_frame = results[0].plot()
+        if progress:
+            progress(min((time.time() - start) / seconds, 1.0))
 
     # 3. 자원해제 + 다음 분석을 위해 추적기 초기화
     cap.release()
@@ -80,7 +88,7 @@ def analyze_stream(source, seconds, model):
         del model.predictor.trackers
 
     if frames == 0:
-        raise ConnectionError("프레임을 하나도 읽지 못했습니다.")
+        raise ConnectionError("CCTV 화면을 받아오지 못했습니다. 다른 CCTV 를 골라보세요.")
 
     stats = {
         "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),

@@ -54,16 +54,20 @@ with st.sidebar:
         seconds = st.slider("분석 시간(초)", 5, 30, 10)
         if st.button("분석 시작", icon=":material/videocam:", width="stretch"):
             cctv_url = cctv_df.loc[cctv_df["cctvname"] == cctv_name, "cctvurl"].iloc[0]
-            with st.spinner(f"{seconds}초 동안 YOLO 탐지 중..."):
-                try:
-                    stats, image = cctv_yolo.analyze_stream(cctv_url, seconds, load_model())
-                    st.session_state.detect = {
-                        "summary": cctv_yolo.make_summary_text(stats, cctv_name),
-                        "image": image,
-                        "name": cctv_name,
-                    }
-                except ConnectionError as e:
-                    st.error(str(e))
+            bar = st.progress(0.0, text=f"{seconds}초 동안 YOLO 탐지 중...")
+            try:
+                stats, image = cctv_yolo.analyze_stream(
+                    cctv_url, seconds, load_model(),
+                    progress=lambda p: bar.progress(p, text=f"YOLO 탐지 중... {int(p * 100)}%"),
+                )
+                st.session_state.detect = {
+                    "summary": cctv_yolo.make_summary_text(stats, cctv_name),
+                    "image": image,
+                    "name": cctv_name,
+                }
+            except ConnectionError as e:
+                st.error(str(e))
+            bar.empty()
     except Exception as e:
         st.warning(f"CCTV 목록을 불러오지 못했습니다 : {e}", title="CCTV 사용 불가")
 
@@ -84,7 +88,7 @@ else:
 
 
 # 7. 시스템 프롬프트 만들기 (탐지 결과가 있으면 같이 넣음)
-system_prompt = "너는 친절한 한국어 도우미야. 항상 한국어로 간결하게 답해."
+system_prompt = "너는 친절한 한국어 도우미야. 항상 한국어로 간결하게 답하고, 한자나 다른 언어는 섞지 마."
 if detect:
     system_prompt += (
         "\n\n아래는 도로 CCTV 영상을 YOLO11n 으로 탐지한 결과야. "

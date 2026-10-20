@@ -64,7 +64,7 @@ def claude_stream(model, system_prompt, history):
 def chat_stream(provider, model, system_prompt, history):
     key_name = "GROQ_API_KEY" if provider == "Groq" else "ANTHROPIC_API_KEY"
     if not os.getenv(key_name):
-        yield f"⚠️ .env 에 {key_name} 가 없습니다. .env.example 을 참고해 넣어주세요."
+        yield f"⚠️ .env 에 {key_name} 가 없습니다. README 의 'API 키 설정' 을 참고해 넣어주세요."
         return
 
     try:
@@ -73,7 +73,10 @@ def chat_stream(provider, model, system_prompt, history):
         else:
             yield from claude_stream(model, system_prompt, history)
     except anthropic.AuthenticationError as e:
-        yield f"⚠️ API 키가 올바르지 않습니다. ({e.message})"
+        yield (
+            f"⚠️ Claude API 키가 올바르지 않거나 만료됐습니다. ({e.message})\n\n"
+            "https://platform.claude.com/settings/keys 에서 새로 발급받아 .env 에 넣어주세요."
+        )
     except anthropic.RateLimitError:
         yield "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도하세요."
     except anthropic.APIConnectionError:
