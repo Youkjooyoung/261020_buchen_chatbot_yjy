@@ -1,0 +1,94 @@
+# ===== 용량이 큰 파일 (GitHub는 100MB 넘는 파일을 받지 않음) =====
+# YOLO 모델 가중치 (실행하면 자동으로 다시 다운로드됨)
+*.pt
+*.pth
+*.onnx
+
+# 영상 파일
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.wmv
+
+# ===== 실행 결과물 (코드를 다시 실행하면 생성됨) =====
+runs/
+weights/
+*_openvino_model/
+*.npy
+
+# ===== 대용량 데이터셋 / 압축 파일 =====
+images/
+*.zip
+
+# ===== 파이썬 자동 생성 파일 =====
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# ===== 가상환경 =====
+venv/
+.venv/
+env/
+
+# ===== 비밀 정보 (비밀번호, API 키, 인증서 등) — 절대 업로드 금지 =====
+# 환경변수 파일 (.env.example 같은 예시 파일만 허용)
+.env
+.env.*
+*.env
+!.env.example
+
+# 비밀번호·토큰·계정 정보를 담는 파일
+secret*
+secrets*
+*secret*.json
+*secret*.yaml
+*secret*.yml
+credential*
+credentials*
+*.credentials
+token.json
+*token*.json
+password*
+passwords*
+*.password
+config.local.*
+local_settings.py
+
+# API 키를 그냥 텍스트로 저장한 파일 (예: groq_api_key.txt)
+*api_key*.txt
+*apikey*.txt
+.streamlit/secrets.toml
+
+# 클라우드·서비스 인증 키 (Google, AWS, Firebase 등)
+client_secret*.json
+service_account*.json
+*-service-account*.json
+*firebase*adminsdk*.json
+.aws/
+.gcloud/
+
+# 개인 키·인증서
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+*.ppk
+
+# 기타 민감 파일
+.netrc
+.npmrc
+.pypirc
+*.kdbx
+
+# ===== OS 자동 생성 파일 =====
+Thumbs.db
+desktop.ini
+.DS_Store
