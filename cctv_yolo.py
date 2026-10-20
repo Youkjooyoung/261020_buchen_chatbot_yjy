@@ -10,12 +10,13 @@ import pandas as pd
 
 # 1. ITS CCTV 목록 가져오기 (v06_03_openapi_yolo.py 의 its_cctv() 를 목록용으로 변형)
 #    -> v06_03 은 import 하는 순간 영상 루프가 돌기 때문에 import 하지 않고 코드를 가져옴
-def get_cctv_list():
+#    road_type : its = 국도(일반도로) , ex = 고속도로
+def get_cctv_list(road_type="its"):
     key = os.getenv("ITS_API_KEY")
     if not key:
         raise ValueError(".env 에 ITS_API_KEY 가 없습니다.")
 
-    road_type, getType = "its", "json"          # its = 일반도로 , ex = 고속도로
+    getType = "json"
     minX, maxX, minY, maxY = 120.95, 127.02, 30.55, 37.69
 
     url_cctv = (

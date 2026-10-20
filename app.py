@@ -19,9 +19,12 @@ def load_model():
     return YOLO("yolo11n.pt")       # 없으면 ultralytics 가 자동 다운로드
 
 
+ROAD_TYPES = {"국도": "its", "고속도로": "ex"}
+
+
 @st.cache_data(ttl=600, show_spinner="CCTV 목록 불러오는 중...")
-def load_cctv_list():
-    return cctv_yolo.get_cctv_list()
+def load_cctv_list(road_type):
+    return cctv_yolo.get_cctv_list(road_type)
 
 
 @st.cache_data(ttl=3600)
@@ -48,9 +51,13 @@ with st.sidebar:
 
     # 5. 사이드바 - CCTV 분석
     st.header("CCTV 분석")
+    road = st.segmented_control("도로 종류", list(ROAD_TYPES), default="국도", required=True)
     try:
-        cctv_df = load_cctv_list()
-        cctv_name = st.selectbox("CCTV 선택", cctv_df["cctvname"].tolist())
+        cctv_df = load_cctv_list(ROAD_TYPES[road])
+        cctv_name = st.selectbox(
+            "CCTV 선택", cctv_df["cctvname"].tolist(),
+            help="목록을 연 상태에서 글자를 입력하면 검색됩니다 (예: 경부)",
+        )
         seconds = st.slider("분석 시간(초)", 5, 30, 10)
         if st.button("분석 시작", icon=":material/videocam:", width="stretch"):
             cctv_url = cctv_df.loc[cctv_df["cctvname"] == cctv_name, "cctvurl"].iloc[0]

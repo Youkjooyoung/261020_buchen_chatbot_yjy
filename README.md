@@ -2,10 +2,26 @@
 
 > GroqAPI, CLAUDE API와 YOLO를 곁들인 Chatbot 구현
 
-Groq / Claude API로 만든 Streamlit 챗봇입니다.
-**국가교통정보센터(ITS) CCTV 영상을 YOLO11n으로 탐지**하고, 그 결과를 챗봇에게 물어볼 수 있습니다.
+Groq / Claude API로 만든 **Streamlit 챗봇**입니다.
+국가교통정보센터(ITS)의 **국도·고속도로 CCTV 영상을 YOLO11n으로 탐지**하고, 그 결과를 챗봇에게 물어볼 수 있습니다.
 
-> 예) "지금 차가 몇 대 지나갔어?", "트럭이 제일 많았던 순간은 몇 대야?"
+> 예) "지금 차가 몇 대 지나갔어?", "트럭도 있었어?"
+
+---
+
+## 📑 목차
+
+1. [기능](#-기능)
+2. [폴더 구조](#-폴더-구조)
+3. [처음 설치하기 (따라하기)](#-처음-설치하기-따라하기)
+4. [API 키 발급받기](#-api-키-발급받기)
+5. [.env 파일 만들기](#-env-파일-만들기)
+6. [실행하기](#-실행하기)
+7. [사용법](#-사용법)
+8. [토큰 사용량 / 요금](#-토큰-사용량--요금)
+9. [문제 해결](#-문제-해결)
+
+---
 
 ## ✨ 기능
 
@@ -13,8 +29,10 @@ Groq / Claude API로 만든 Streamlit 챗봇입니다.
 |---|---|
 | AI 선택 | 사이드바에서 **Groq**(무료)와 **Claude**(유료) 중 선택, 모델도 고를 수 있음 |
 | 실시간 답변 | 답변이 글자 단위로 바로 나옴 (스트리밍) |
-| CCTV 분석 | CCTV를 고르고 5~30초 동안 YOLO11n으로 **추적(track)** → 종류별 지나간 수·최대·평균 계산 |
+| 도로 선택 | **국도**(약 1100개) / **고속도로**(약 900개) CCTV 선택 |
+| CCTV 분석 | 5~30초 동안 YOLO11n으로 **추적(track)** → 종류별 지나간 수·최대·평균 계산, 진행 막대 표시 |
 | 탐지 결과로 질문 | 분석 결과를 글로 정리해서 챗봇에게 전달 → 챗봇이 데이터를 근거로 답함 |
+| 토큰 절약 | 최근 대화 10개만 AI에게 보냄, gpt-oss 모델은 추론 강도 low |
 
 ### YOLO 결과를 어떻게 챗봇에 연결하나요?
 LLM은 영상을 직접 보지 않습니다. YOLO가 찾은 결과를 **글로 바꿔서 시스템 프롬프트에 넣는** 방식입니다.
@@ -23,6 +41,8 @@ LLM은 영상을 직접 보지 않습니다. YOLO가 찾은 결과를 **글로 �
 CCTV 영상 ──▶ YOLO11n 추적 ──▶ 탐지 요약 글 ──▶ 시스템 프롬프트 ──▶ Groq / Claude ──▶ 답변
             (cctv_yolo.py)     (make_summary_text)        (app.py)            (llm.py)
 ```
+
+---
 
 ## 📁 폴더 구조
 
@@ -33,55 +53,179 @@ CCTV 영상 ──▶ YOLO11n 추적 ──▶ 탐지 요약 글 ──▶ 시�
 ├── cctv_yolo.py      # ITS CCTV 목록 조회 + YOLO11n 탐지·요약
 ├── requirements.txt  # 필요한 라이브러리 목록
 ├── .gitignore        # .env, 키 파일, *.pt 등 업로드 제외
-└── README.md
+├── README.md
+└── .env              # ⚠️ 직접 만드는 파일 (API 키) - GitHub에 올라가지 않음
 ```
 
-## ⚙️ 설치
+---
 
-```bash
+## 🛠 처음 설치하기 (따라하기)
+
+> 처음 한 번만 하면 됩니다. 다음부터는 [6. 실행하기](#-실행하기)만 하면 됩니다.
+
+### 0단계. 필요한 프로그램 설치
+
+| 프로그램 | 다운로드 | 비고 |
+|---|---|---|
+| **Anaconda** | https://www.anaconda.com/download | 파이썬 + 가상환경 관리 |
+| **VS Code** | https://code.visualstudio.com | 코드 편집기 |
+| **Git** | https://git-scm.com/download/win | 코드 내려받기 (ZIP으로 받으면 없어도 됨) |
+
+VS Code를 연 뒤 왼쪽 **확장(Extensions, `Ctrl + Shift + X`)** 에서 **Python** 을 검색해 설치합니다.
+
+### 1단계. 코드 내려받기
+
+**방법 A - Git 사용**
+
+원하는 위치(예: 바탕화면)에서 cmd를 열고 입력합니다.
+```cmd
+git clone https://github.com/Youkjooyoung/261020_buchen_chatbot_yjy.git
+```
+
+**방법 B - ZIP 다운로드**
+
+GitHub 페이지에서 초록색 **[<> Code]** 버튼 → **Download ZIP** → 압축 풀기
+
+### 2단계. VS Code로 폴더 열기
+
+1. VS Code 실행
+2. 상단 메뉴 **파일(File) → 폴더 열기(Open Folder...)**
+3. `261020_buchen_chatbot_yjy` 폴더 선택 → **폴더 선택**
+4. "이 폴더의 작성자를 신뢰하십니까?" 가 나오면 **예, 작성자를 신뢰합니다**
+
+### 3단계. 터미널을 **cmd(명령 프롬프트)** 로 열기
+
+> ⚠️ **PowerShell이 아니라 cmd를 사용하세요.**
+> PowerShell에서는 `conda activate`가 아무 말 없이 실패해서 `'streamlit' 용어는 ... 인식되지 않습니다` 오류가 날 수 있습니다.
+
+1. 상단 메뉴 **터미널(Terminal) → 새 터미널(New Terminal)** (단축키 `` Ctrl + ` ``)
+2. 아래쪽에 터미널이 열리면, 터미널 오른쪽 위의 **`+` 옆 `∨` (화살표)** 클릭
+3. **Command Prompt** 선택
+4. 터미널 앞부분이 아래처럼 `PS` 없이 나오면 cmd 입니다.
+   ```
+   C:\...\261020_buchen_chatbot_yjy>
+   ```
+
+> 💡 매번 cmd로 열리게 하려면: `Ctrl + Shift + P` → **Terminal: Select Default Profile** → **Command Prompt**
+
+### 4단계. 가상환경 만들기 + 켜기
+
+**처음 한 번만** 가상환경을 만듭니다. (이미 `py311` 환경이 있으면 건너뛰기)
+```cmd
+conda create -n py311 python=3.11 -y
+```
+
+가상환경을 켭니다.
+```cmd
 conda activate py311
-cd 261020_buchen_chatbot_yjy
+```
+
+앞에 **`(py311)`** 이 붙으면 성공입니다.
+```
+(py311) C:\...\261020_buchen_chatbot_yjy>
+```
+
+### 5단계. 라이브러리 설치
+
+```cmd
 pip install -r requirements.txt
 ```
 
-## 🔑 API 키 설정 (.env)
+설치되는 라이브러리 : `streamlit`, `groq`, `anthropic`, `python-dotenv`, `ultralytics`, `opencv-python`, `pandas`, `lap`
+(몇 분 걸릴 수 있습니다. 마지막에 `Successfully installed ...` 가 나오면 완료)
 
-1. 이 폴더에 `.env` 파일을 새로 만듭니다.
-2. 아래처럼 키 이름을 쓰고 `=` 뒤에 본인 키를 넣습니다.
+### 6단계. VS Code 파이썬 선택 (선택)
+
+`Ctrl + Shift + P` → **Python: Select Interpreter** → **`py311`** 선택
+→ 코드에 빨간 밑줄(라이브러리 못 찾음)이 사라집니다.
+
+---
+
+## 🔑 API 키 발급받기
+
+| 키 이름 | 어디에 쓰나 | 필수 | 비용 |
+|---|---|---|---|
+| `GROQ_API_KEY` | Groq 챗봇 | ✅ | 무료 |
+| `ITS_API_KEY` | CCTV 목록 | CCTV 분석할 때 | 무료 |
+| `ANTHROPIC_API_KEY` | Claude 챗봇 | Claude 쓸 때만 | **유료** |
+
+### Groq (무료)
+1. https://console.groq.com 접속 → 구글 계정 등으로 로그인
+2. 왼쪽 메뉴 **API Keys** → **Create API Key**
+3. 이름 입력 후 생성 → `gsk_...` 로 시작하는 키 **복사** (한 번만 보여줌)
+
+### ITS 국가교통정보센터 (무료)
+1. https://www.its.go.kr/opendata/ 접속 → 회원가입 / 로그인
+2. 오픈API 메뉴에서 **CCTV 정보** 활용 신청
+3. 마이페이지에서 발급된 **인증키** 복사
+
+### Claude (유료)
+1. https://platform.claude.com 접속 → 로그인
+2. **Settings → Billing** 에서 크레딧 충전 (claude.ai 구독과는 별도 결제)
+3. **Settings → API Keys** (https://platform.claude.com/settings/keys) → **Create Key**
+   - "ID 페더레이션" 안내가 나오면 → **API 키로 계속하기**
+   - 이름 : 예) `buchen-chatbot` / 만료 : 30일 / 범위 : **기본 워크스페이스**
+4. `sk-ant-...` 로 시작하는 키 **복사** (한 번만 보여줌)
+5. (추천) **Settings → Limits** 에서 월 사용 한도를 작게 설정
+
+---
+
+## 📄 .env 파일 만들기
+
+1. VS Code 왼쪽 **탐색기(Explorer)** 에서 `261020_buchen_chatbot_yjy` 폴더에 마우스를 올림
+2. **새 파일(📄+)** 아이콘 클릭 → 파일 이름을 **`.env`** 로 입력 (앞에 점 `.` 꼭 포함, 확장자 없음)
+3. 아래 내용을 붙여넣고 `=` 뒤에 본인 키를 넣은 뒤 **저장(`Ctrl + S`)**
 
 ```
 GROQ_API_KEY=여기에_Groq_키
-ANTHROPIC_API_KEY=여기에_Claude_키    # Claude를 쓸 때만
-ITS_API_KEY=여기에_ITS_키             # CCTV 분석을 쓸 때만
+ITS_API_KEY=여기에_ITS_키
+ANTHROPIC_API_KEY=여기에_Claude_키
 ```
 
-| 키 | 발급처 | 비용 |
-|---|---|---|
-| `GROQ_API_KEY` | https://console.groq.com/keys | 무료 (요청 수 제한 있음) |
-| `ANTHROPIC_API_KEY` | https://platform.claude.com/settings/keys | 유료 (크레딧 필요) |
-| `ITS_API_KEY` | https://www.its.go.kr/opendata/ | 무료 |
+> ⚠️ `=` 앞뒤에 띄어쓰기, 따옴표(`"`)를 넣지 마세요.
+> ⚠️ `.env`는 `.gitignore`로 막혀 있어 GitHub에 올라가지 않습니다. **키를 코드(.py)에 직접 쓰지 마세요.**
 
-> 이 폴더에 `.env`가 없으면 상위 폴더(`Wori/.env`)를 찾아서 씁니다.
-> ⚠️ `.env`는 `.gitignore`로 막혀 있어 GitHub에 올라가지 않습니다. **키를 코드에 직접 쓰지 마세요.**
+---
 
-## ▶️ 실행
+## ▶️ 실행하기
 
-```bash
-streamlit run app.py
-```
+> ⚠️ VS Code 오른쪽 위 **▶ 실행 버튼(또는 F5)으로 실행하면 안 됩니다.**
+> Streamlit은 반드시 터미널에서 `streamlit run` 으로 실행해야 브라우저 화면이 뜹니다.
 
-브라우저에서 http://localhost:8501 이 열립니다.
+### 매번 실행하는 순서
+
+1. VS Code에서 `261020_buchen_chatbot_yjy` 폴더 열기
+2. **터미널 → 새 터미널** → **Command Prompt(cmd)** 인지 확인 ([3단계](#3단계-터미널을-cmd명령-프롬프트-로-열기) 참고)
+3. 아래 두 줄 입력
+   ```cmd
+   conda activate py311
+   streamlit run app.py
+   ```
+4. 브라우저에 **http://localhost:8501** 이 자동으로 열립니다.
+   - 안 열리면 브라우저 주소창에 직접 `http://localhost:8501` 입력
+
+> 💡 **처음 실행할 때** 터미널에 `Email:` 을 물어보면 그냥 **Enter** 를 누르면 됩니다.
+> 💡 처음 CCTV 분석할 때 `yolo11n.pt` 모델(약 5MB)을 자동으로 내려받습니다.
+
+### 종료하기
+
+터미널을 클릭하고 **`Ctrl + C`** → 브라우저 탭 닫기
+
+---
 
 ## 💬 사용법
 
-1. **AI 선택** : 사이드바에서 `Groq` 또는 `Claude`를 고르고 모델을 선택합니다.
+1. **AI 선택** : 사이드바 맨 위에서 `Groq` 또는 `Claude` 선택 → 모델 선택
    - Groq 기본 모델 : `openai/gpt-oss-120b`
    - Claude : `claude-opus-5-5`(기본) / `claude-sonnet-5-5` / `claude-haiku-5-5`
 2. **그냥 대화** : 아래 입력창에 질문하면 일반 챗봇처럼 답합니다.
-3. **CCTV 분석** : 사이드바에서 CCTV를 고르고 분석 시간을 정한 뒤 **[분석 시작]**을 누릅니다.
-   - 본문 위에 탐지 결과 이미지와 요약이 나옵니다.
-4. **탐지 결과 질문** : 이제 CCTV에 대해 물어보면 탐지 데이터를 근거로 답합니다.
-5. **[대화 지우기]** 로 대화를 새로 시작합니다.
+3. **CCTV 분석**
+   1. **도로 종류** : `국도` / `고속도로` 선택
+   2. **CCTV 선택** : 목록을 연 상태에서 글자를 입력하면 검색됩니다 (예: `경부`, `서울`)
+   3. **분석 시간** : 5~30초
+   4. **[분석 시작]** 클릭 → 진행 막대가 끝나면 본문 위에 탐지 이미지와 요약이 나옵니다.
+4. **탐지 결과 질문** : CCTV에 대해 물어보면 탐지 데이터를 근거로 답합니다.
+5. **[대화 지우기]** : 대화를 새로 시작합니다.
 
 ### 예시 질문
 - "차가 몇 대 지나갔어?"
@@ -89,10 +233,38 @@ streamlit run app.py
 - "가장 많이 탐지된 건 뭐야?"
 - "교통이 막히는 편이야?"
 
+---
+
+## 📊 토큰 사용량 / 요금
+
+| AI | 요금 | 한도 (무료 키 기준) | 질문 1번 토큰 (실측) |
+|---|---|---|---|
+| Groq `gpt-oss-120b` | 무료 | 하루 1000번, 1분 8000 토큰 | 약 200 |
+| Claude | 유료 (토큰당 과금) | 충전한 크레딧만큼 | 모델마다 다름 |
+
+- AI에게는 **최근 대화 10개만** 보내서, 대화가 길어져도 토큰이 크게 늘지 않습니다. (화면에는 전체 대화가 남음)
+- Groq 한도를 넘으면 잠깐 막혔다가 시간이 지나면 풀립니다. 요금은 나오지 않습니다.
+
+---
+
+## 🧯 문제 해결
+
+| 증상 | 원인 | 해결 |
+|---|---|---|
+| `'streamlit' 용어는 ... 인식되지 않습니다` | PowerShell에서 가상환경이 안 켜짐 | 터미널을 **cmd** 로 바꾸고 `conda activate py311` 후 실행 |
+| `'conda'은(는) ... 명령이 아닙니다` | Anaconda가 PATH에 없음 | 시작 메뉴의 **Anaconda Prompt** 로 실행하거나, Anaconda 재설치 시 "Add to PATH" 체크 |
+| `missing ScriptRunContext` 경고가 잔뜩 나옴 | ▶ 버튼(F5)으로 실행함 | 터미널에서 `streamlit run app.py` 로 실행 |
+| `ModuleNotFoundError: No module named ...` | 라이브러리 미설치 / 가상환경 안 켜짐 | `(py311)` 확인 후 `pip install -r requirements.txt` |
+| "⚠️ .env 에 GROQ_API_KEY 가 없습니다" | `.env` 파일이 없거나 이름이 틀림 | [.env 파일 만들기](#-env-파일-만들기) 확인 (`.env.txt` 가 아닌지 확인) |
+| "CCTV 목록을 불러오지 못했습니다" | `ITS_API_KEY` 없음 / 인터넷 | `.env` 에 `ITS_API_KEY` 확인 |
+| "CCTV 영상을 열 수 없습니다" | 해당 CCTV 서버 문제 | 다른 CCTV 선택 (10초 안에 자동으로 멈춤) |
+| "Claude API 키가 올바르지 않거나 만료됐습니다" | 키 오류 / 30일 만료 | platform.claude.com 에서 새로 발급 → `.env` 교체 → 앱 재실행 |
+| `Port 8501 is already in use` | 앱이 이미 켜져 있음 | 기존 터미널에서 `Ctrl + C` 또는 `streamlit run app.py --server.port 8502` |
+
+---
+
 ## 📝 참고
 
-- `yolo11n.pt`가 없으면 처음 실행할 때 ultralytics가 자동으로 받습니다.
 - "지나간 수"는 추적 ID 기준이라 가려지거나 다시 나타난 객체 때문에 실제와 조금 다를 수 있습니다.
-- CCTV 스트림은 서버 상태에 따라 열리지 않을 수 있습니다. 그럴 땐 다른 CCTV를 골라보세요.
 - Claude Opus/Sonnet은 거절(refusal) 시 서버가 다른 모델로 이어서 답하는 기능(`fallbacks="default"`)을 켜 두었습니다.
 - CCTV 목록 조회 코드는 `261019_6_openapi/v06_03_openapi_yolo.py`의 `its_cctv()`를 바탕으로 만들었습니다.

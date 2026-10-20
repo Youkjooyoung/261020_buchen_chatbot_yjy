@@ -11,6 +11,17 @@ CLAUDE_MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
 # 채팅용이 아닌 모델 (음성 인식·음성 합성·안전 필터) 은 목록에서 제외
 NOT_CHAT = ("whisper", "orpheus", "guard")
 
+# AI 에게 보낼 최근 대화 개수 (대화가 길어져도 토큰 사용량이 일정하게 유지됨)
+MAX_HISTORY = 10
+
+
+# 1-1. 최근 대화만 잘라내기 (첫 메시지는 항상 user 여야 함)
+def recent_history(history):
+    recent = history[-MAX_HISTORY:]
+    if recent and recent[0]["role"] == "assistant":
+        recent = recent[1:]
+    return recent
+
 
 # 2. Groq 모델 목록 (서버에서 받아옴, 실패하면 기본 모델만)
 def groq_models():
@@ -27,10 +38,13 @@ def groq_models():
 # 3. Groq 스트리밍 답변 -> 글자를 조금씩 yield
 def groq_stream(model, system_prompt, history):
     client = Groq()     # GROQ_API_KEY 환경변수를 자동으로 읽음
+    # gpt-oss 는 답하기 전 '추론 토큰' 을 씀 -> low 로 줄이면 토큰 절약 + 빠른 답변
+    extra = {"reasoning_effort": "low"} if "gpt-oss" in model else {}
     stream = client.chat.completions.create(
         model=model,
-        messages=[{"role": "system", "content": system_prompt}] + history,
+        messages=[{"role": "system", "content": system_prompt}] + recent_history(history),
         stream=True,
+        **extra,
     )
     for chunk in stream:
         text = chunk.choices[0].delta.content
@@ -52,7 +66,7 @@ def claude_stream(model, system_prompt, history):
         model=model,
         max_tokens=16000,
         system=system_prompt,
-        messages=history,
+        messages=recent_history(history),
         output_config={"effort": "low"},    # 채팅은 low 로도 충분 -> 빠르고 저렴
         **extra,
     ) as stream:
