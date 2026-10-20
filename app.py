@@ -1,3 +1,5 @@
+import threading
+
 import streamlit as st
 from dotenv import load_dotenv, find_dotenv
 from ultralytics import YOLO
@@ -29,7 +31,12 @@ def load_cctv_list(road_type):
 
 @st.cache_data(ttl=3600)
 def load_groq_models():
-    return llm.groq_models()
+    return llm.groq_models()        # 실패하면 예외 -> 캐시에 저장되지 않아 다음에 다시 시도
+
+
+@st.cache_resource
+def analysis_lock():
+    return threading.Lock()         # YOLO 모델을 모든 탭이 같이 씀 -> 분석은 한 번에 하나만
 
 
 # 3. session_state 초기화
@@ -44,7 +51,11 @@ with st.sidebar:
     st.header("AI 선택")
     provider = st.segmented_control("제공사", ["Groq", "Claude"], default="Groq", required=True)
     if provider == "Groq":
-        model = st.selectbox("모델", load_groq_models())
+        try:
+            groq_list = load_groq_models()
+        except Exception:
+            groq_list = [llm.GROQ_DEFAULT_MODEL]    # 키 없음 / 인터넷 오류 -> 기본 모델만
+        model = st.selectbox("모델", groq_list)
     else:
         model = st.selectbox("모델", llm.CLAUDE_MODELS)
         st.caption("Claude 는 유료입니다 (ANTHROPIC_API_KEY 필요)")
@@ -69,26 +80,31 @@ with st.sidebar:
         )
         seconds = st.slider("분석 시간(초)", 5, 30, 10)
         if st.button("분석 시작", icon=":material/videocam:", width="stretch"):
-            # 같은 이름은 get_cctv_list 에서 (2), (3) 을 붙여 구분해 둠 -> 이름으로 찾아도 정확함
-            cctv_url = cctv_df.loc[cctv_df["cctvname"] == cctv_name, "cctvurl"].iloc[0]
-            bar = st.progress(0.0, text=f"{seconds}초 동안 YOLO 탐지 중...")
-            try:
-                stats, image = cctv_yolo.analyze_stream(
-                    cctv_url, seconds, load_model(),
-                    progress=lambda p: bar.progress(p, text=f"YOLO 탐지 중... {int(p * 100)}%"),
-                )
-                st.session_state.detect = {
-                    "summary": cctv_yolo.make_summary_text(stats, cctv_name),
-                    "image": image,
-                    "name": cctv_name,
-                }
-                st.session_state.messages = []      # 새 분석 -> 이전 CCTV 대화 초기화
-            except ConnectionError as e:
-                st.error(str(e))
-            except Exception as e:
-                st.error(f"분석 중 오류가 발생했습니다 : {e}")
-            finally:
-                bar.empty()                         # 오류가 나도 진행 막대는 지움
+            # 다른 탭에서 분석 중이면 기다리지 않고 안내 (추적 결과가 섞이지 않게)
+            if not analysis_lock().acquire(blocking=False):
+                st.warning("다른 탭에서 분석 중입니다. 끝난 뒤 다시 눌러주세요.")
+            else:
+                # 같은 이름은 get_cctv_list 에서 (2), (3) 을 붙여 구분해 둠 -> 이름으로 찾아도 정확함
+                cctv_url = cctv_df.loc[cctv_df["cctvname"] == cctv_name, "cctvurl"].iloc[0]
+                bar = st.progress(0.0, text=f"{seconds}초 동안 YOLO 탐지 중...")
+                try:
+                    stats, image = cctv_yolo.analyze_stream(
+                        cctv_url, seconds, load_model(),
+                        progress=lambda p: bar.progress(p, text=f"YOLO 탐지 중... {int(p * 100)}%"),
+                    )
+                    st.session_state.detect = {
+                        "summary": cctv_yolo.make_summary_text(stats, cctv_name),
+                        "image": image,
+                        "name": cctv_name,
+                    }
+                    st.session_state.messages = []      # 새 분석 -> 이전 CCTV 대화 초기화
+                except ConnectionError as e:
+                    st.error(str(e))
+                except Exception as e:
+                    st.error(f"분석 중 오류가 발생했습니다 : {e}")
+                finally:
+                    bar.empty()                         # 오류가 나도 진행 막대는 지움
+                    analysis_lock().release()
 
     st.divider()
     if st.button("대화 지우기", icon=":material/delete:", width="stretch"):

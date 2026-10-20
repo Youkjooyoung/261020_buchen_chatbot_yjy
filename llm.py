@@ -28,13 +28,10 @@ def recent_history(history):
     return recent
 
 
-# 2. Groq 모델 목록 (서버에서 받아옴, 실패하면 기본 모델만)
+# 2. Groq 모델 목록 (서버에서 받아옴, 실패하면 예외 -> app.py 에서 기본 모델만 사용)
 def groq_models():
-    try:
-        models = Groq().models.list().data
-        ids = sorted(m.id for m in models if not any(w in m.id for w in NOT_CHAT))
-    except Exception:
-        ids = []
+    models = Groq().models.list().data
+    ids = sorted(m.id for m in models if not any(w in m.id for w in NOT_CHAT))
     if GROQ_DEFAULT_MODEL in ids:
         ids.remove(GROQ_DEFAULT_MODEL)
     return [GROQ_DEFAULT_MODEL] + ids
